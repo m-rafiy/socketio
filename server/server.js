@@ -40,7 +40,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+        const username = socket.data.username;
+        const room = socket.data.room;
+
+
+    console.log(username,'disconnected from', room);
   });
 });
 
