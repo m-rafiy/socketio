@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Race</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #f4f4f9;
+    }
+    #text {
+      width: 80%;
+      max-width: 700px;
+      line-height: 1.8;
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    .word {
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    .current {
+      background-color: #ffeb3b; /* yellow */
+    }
+    .correct {
+      color: #2ecc71; /* green */
+    }
+    .incorrect {
+      color: #e74c3c; /* red */
+    }
+    input {
+      width: 300px;
+      font-size: 1.1rem;
+      padding: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="text"></div>
+  <input id="input" type="text" placeholder="Start typing..." autofocus />
+
+  <script>
+    const textElement = document.getElementById("text");
+    const input = document.getElementById("input");
+
+    const passage = "The quick brown fox jumps over the lazy dog";
+    const words = passage.split(" ");
+    let currentWordIndex = 0;
+
+    // Render the text
+    function renderText() {
+      textElement.innerHTML = words
+        .map((word, i) => {
+          let className = "word";
+          if (i === currentWordIndex) className += " current";
+          else if (i < currentWordIndex) className += " correct";
+          return `<span class="${className}">${word}</span>`;
+        })
+        .join(" ");
+    }
+
+    renderText();
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === " ") {
+        e.preventDefault(); // stop space from adding to input
+        const typed = input.value.trim();
+        const currentWord = words[currentWordIndex];
+
+        const currentSpan = textElement.children[currentWordIndex];
+        if (typed === currentWord) {
+          currentSpan.classList.remove("current", "incorrect");
+          currentSpan.classList.add("correct");
+          currentWordIndex++;
+          if (currentWordIndex < words.length) {
+            textElement.children[currentWordIndex].classList.add("current");
+          } else {
+            alert("🏁 Finished!");
+          }
+          input.value = "";
+        } else {
+          currentSpan.classList.add("incorrect");
+        }
+      }
+    });
+
+    input.addEventListener("input", () => {
+      const typed = input.value.trim();
+      const currentWord = words[currentWordIndex];
+      const currentSpan = textElement.children[currentWordIndex];
+
+      // Live feedback while typing
+      if (currentWord.startsWith(typed)) {
+        currentSpan.classList.remove("incorrect");
+      } else {
+        currentSpan.classList.add("incorrect");
+      }
+    });
+  </script>
+
+</body>
+</html>

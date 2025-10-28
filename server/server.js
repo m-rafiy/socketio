@@ -13,6 +13,10 @@ app.use(express.static('public'));
 app.get('/', (req, res) => {
   res.sendFile(join(__dirname, 'index.html'));
 });
+app.get('/race', (req, res) => {
+  res.sendFile(join(__dirname, '/public/race.html'));
+});
+
 io.on('connection', (socket) => {
   console.log('a user connected');
 
