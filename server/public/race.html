@@ -46,20 +46,32 @@
     input:focus {
       border-color: #333;
     }
+    #timer {
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
+
 <body>
 
+  <div id="timer">⏱️ Time: 30s</div>
   <div id="text"></div>
   <input id="input" type="text" placeholder="Start typing..." autofocus />
 
   <script>
     const textElement = document.getElementById("text");
     const input = document.getElementById("input");
+    const timerDisplay = document.getElementById("timer");
 
     const passage = "The quick brown fox jumps over the lazy dog";
     const words = passage.split(" ");
     let currentWordIndex = 0;
+    let correctWords = 0;
+    let timeLeft = 30;
+    let timer = null;
+    let started = false;
 
     // Render the text
     function renderText() {
@@ -75,21 +87,43 @@
 
     renderText();
 
+    function startTimer() {
+      timer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = `⏱️ Time: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          input.disabled = true;
+          const wpm = Math.round((correctWords / 30) * 60);
+          alert(`⏰ Time's up!\nYou typed ${correctWords} correct words.\nSpeed: ${wpm} WPM`);
+        }
+      }, 1000);
+    }
+
     input.addEventListener("keydown", (e) => {
+      if (!started) {
+        started = true;
+        startTimer();
+      }
+
       if (e.key === " ") {
         e.preventDefault(); // stop space from adding to input
         const typed = input.value.trim();
         const currentWord = words[currentWordIndex];
-
         const currentSpan = textElement.children[currentWordIndex];
+
         if (typed === currentWord) {
+          correctWords++;
           currentSpan.classList.remove("current", "incorrect");
           currentSpan.classList.add("correct");
           currentWordIndex++;
           if (currentWordIndex < words.length) {
             textElement.children[currentWordIndex].classList.add("current");
           } else {
-            alert("🏁 Finished!");
+            clearInterval(timer);
+            const wpm = Math.round((correctWords / (30 - timeLeft)) * 60);
+            alert(`🏁 Finished early!\nYou typed ${correctWords} correct words.\nSpeed: ${wpm} WPM`);
+            input.disabled = true;
           }
           input.value = "";
         } else {
