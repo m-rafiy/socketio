@@ -1,68 +1,43 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Join a Chat Room</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body {
-        font-family: sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        background: #f0f2f5;
-      }
-      form {
-        background: white;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        width: 300px;
-      }
-      input, select, button {
-        width: 100%;
-        padding: 10px;
-        margin: 8px 0;
-        font-size: 1rem;
-        border-radius: 6px;
-        border: 1px solid #ccc;
-      }
-      button {
-        background: #333;
-        color: white;
-        border: none;
-        cursor: pointer;
-      }
-      button:hover {
-        background: #555;
-      }
-    </style>
-  </head>
-  <body>
-    <form id="joinForm">
-      <h2>Join a Chat Room</h2>
-      <input id="username" type="text" placeholder="Enter your username" required>
-      <select id="room" required>
-        <option value="" disabled selected>Select a room</option>
-        <option value="Room 1">Room 1</option>
-        <option value="Room 2">Room 2</option>
-        <option value="Room 3">Room 3</option>
-      </select>
-      <button type="submit">Join</button>
-    </form>
+<head>
+  <title>Typing Race Lobby</title>
+  <style>
+    body {
+      font-family: system-ui;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+      background: #fafafa;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 1.2rem;
+      margin: 8px;
+    }
+  </style>
+</head>
+<body>
 
-    <script>
-      document.getElementById('joinForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value.trim();
-        const room = document.getElementById('room').value;
-        if (username && room) {
-          // Redirect to chat page with query parameters
-          window.location.href = `/chat.html?username=${encodeURIComponent(username)}&room=${encodeURIComponent(room)}`;
-        }
-      });
-    </script>
-  </body>
+<h1>🏁 Typing Race Lobby</h1>
+
+<input id="username" placeholder="Your name">
+<input id="room" placeholder="Room name" value="race1">
+
+<button onclick="joinRace()">Join Race</button>
+
+<script>
+function joinRace() {
+  const username = document.getElementById("username").value.trim();
+  const room = document.getElementById("room").value.trim();
+
+  if (!username || !room) return alert("Enter username + room");
+
+  window.location = `/race?username=${username}&room=${room}`;
+}
+</script>
+
+</body>
 </html>

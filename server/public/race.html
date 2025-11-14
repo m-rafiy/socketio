@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Typing Race</title>
+
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -27,13 +28,13 @@
       border-radius: 4px;
     }
     .current {
-      background-color: #ffeb3b; /* yellow */
+      background-color: #ffeb3b;
     }
     .correct {
-      color: #2ecc71; /* green */
+      color: #2ecc71;
     }
     .incorrect {
-      color: #e74c3c; /* red */
+      color: #e74c3c;
     }
     input {
       width: 300px;
@@ -43,108 +44,171 @@
       border-radius: 5px;
       outline: none;
     }
-    input:focus {
-      border-color: #333;
-    }
     #timer {
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       font-weight: bold;
       margin-bottom: 1rem;
+    }
+    #players {
+      margin-bottom: 1.5rem;
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      min-width: 260px;
+    }
+    #players h3 {
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    #players ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #players li {
+      padding: 4px 0;
+      font-weight: 600;
+      color: #333;
     }
   </style>
 </head>
 
 <body>
 
-  <div id="timer">⏱️ Time: 30s</div>
-  <div id="text"></div>
-  <input id="input" type="text" placeholder="Start typing..." autofocus />
+<script src="/socket.io/socket.io.js"></script>
 
-  <script>
-    const textElement = document.getElementById("text");
-    const input = document.getElementById("input");
-    const timerDisplay = document.getElementById("timer");
+<h2 id="timer">⏳ Waiting for players...</h2>
+<div id="players">
+  <h3>Lobby:</h3>
+  <ul id="player-list">
+    <li>Waiting for players…</li>
+  </ul>
+</div>
+<div id="text"></div>
+<input id="input" type="text" placeholder="Start typing..." disabled />
 
-    const passage = "The quick brown fox jumps over the lazy dog";
-    const words = passage.split(" ");
-    let currentWordIndex = 0;
-    let correctWords = 0;
-    let timeLeft = 30;
-    let timer = null;
-    let started = false;
+<script>
+const socket = io();
+const params = new URLSearchParams(window.location.search);
+const username = params.get("username");
+const room = params.get("room");
 
-    // Render the text
-    function renderText() {
-      textElement.innerHTML = words
-        .map((word, i) => {
-          let className = "word";
-          if (i === currentWordIndex) className += " current";
-          else if (i < currentWordIndex) className += " correct";
-          return `<span class="${className}">${word}</span>`;
-        })
-        .join(" ");
+socket.emit("join room", { username, room });
+
+// Countdown events from server
+socket.on("lobby countdown", (num) => {
+  document.getElementById("timer").textContent = `🏁 Lobby closes in ${num}s`;
+});
+
+socket.on("lobby-locked", () => {
+  alert("Lobby is closed. Race already started.");
+  window.location = "/";
+});
+
+// The race begins
+socket.on("start game", () => {
+  startRace();
+});
+
+// Update player list in lobby
+const playerList = document.getElementById("player-list");
+socket.on("player list", (players) => {
+  if (!players.length) {
+    playerList.innerHTML = "<li>Waiting for players…</li>";
+    return;
+  }
+
+  playerList.innerHTML = players
+    .map((p, i) => `<li>${i + 1}. ${p}</li>`)
+    .join("");
+});
+
+// ---- Typing game logic ----
+const textElement = document.getElementById("text");
+const input = document.getElementById("input");
+let currentWordIndex = 0;
+let correctWords = 0;
+let timeLeft = 30;
+let timer = null;
+let started = false;
+
+const passage = "The quick brown fox jumps over the lazy dog";
+const words = passage.split(" ");
+
+function renderText() {
+  textElement.innerHTML = words
+    .map((w, i) => {
+      let cls = "word";
+      if (i === currentWordIndex) cls += " current";
+      else if (i < currentWordIndex) cls += " correct";
+      return `<span class="${cls}">${w}</span>`;
+    })
+    .join(" ");
+}
+renderText();
+
+function startRace() {
+  document.getElementById("timer").textContent = "⏱️ Race started!";
+  input.disabled = false;
+  input.focus();
+  started = true;
+  startTimer();
+}
+
+function startTimer() {
+  timer = setInterval(() => {
+    timeLeft--;
+    document.getElementById("timer").textContent = `⏱️ Time: ${timeLeft}s`;
+
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      input.disabled = true;
+      const wpm = Math.round((correctWords / 30) * 60);
+      alert(`⏰ Time's up!\nCorrect words: ${correctWords}\nSpeed: ${wpm} WPM`);
     }
+  }, 1000);
+}
 
-    renderText();
+input.addEventListener("keydown", (e) => {
+  if (!started) return;
 
-    function startTimer() {
-      timer = setInterval(() => {
-        timeLeft--;
-        timerDisplay.textContent = `⏱️ Time: ${timeLeft}s`;
-        if (timeLeft <= 0) {
-          clearInterval(timer);
-          input.disabled = true;
-          const wpm = Math.round((correctWords / 30) * 60);
-          alert(`⏰ Time's up!\nYou typed ${correctWords} correct words.\nSpeed: ${wpm} WPM`);
-        }
-      }, 1000);
-    }
+  if (e.key === " ") {
+    e.preventDefault();
+    const typed = input.value.trim();
+    const word = words[currentWordIndex];
+    const span = textElement.children[currentWordIndex];
 
-    input.addEventListener("keydown", (e) => {
-      if (!started) {
-        started = true;
-        startTimer();
-      }
+    if (typed === word) {
+      correctWords++;
+      span.classList.remove("current", "incorrect");
+      span.classList.add("correct");
+      currentWordIndex++;
 
-      if (e.key === " ") {
-        e.preventDefault(); // stop space from adding to input
-        const typed = input.value.trim();
-        const currentWord = words[currentWordIndex];
-        const currentSpan = textElement.children[currentWordIndex];
-
-        if (typed === currentWord) {
-          correctWords++;
-          currentSpan.classList.remove("current", "incorrect");
-          currentSpan.classList.add("correct");
-          currentWordIndex++;
-          if (currentWordIndex < words.length) {
-            textElement.children[currentWordIndex].classList.add("current");
-          } else {
-            clearInterval(timer);
-            const wpm = Math.round((correctWords / (30 - timeLeft)) * 60);
-            alert(`🏁 Finished early!\nYou typed ${correctWords} correct words.\nSpeed: ${wpm} WPM`);
-            input.disabled = true;
-          }
-          input.value = "";
-        } else {
-          currentSpan.classList.add("incorrect");
-        }
-      }
-    });
-
-    input.addEventListener("input", () => {
-      const typed = input.value.trim();
-      const currentWord = words[currentWordIndex];
-      const currentSpan = textElement.children[currentWordIndex];
-
-      // Live feedback while typing
-      if (currentWord.startsWith(typed)) {
-        currentSpan.classList.remove("incorrect");
+      if (currentWordIndex < words.length) {
+        textElement.children[currentWordIndex].classList.add("current");
       } else {
-        currentSpan.classList.add("incorrect");
+        clearInterval(timer);
+        const wpm = Math.round((correctWords / (30 - timeLeft)) * 60);
+        alert(`🏁 Finished early!\nCorrect: ${correctWords}\nWPM: ${wpm}`);
       }
-    });
-  </script>
+      input.value = "";
+    } else {
+      span.classList.add("incorrect");
+    }
+  }
+});
+
+input.addEventListener("input", () => {
+  const typed = input.value.trim();
+  const word = words[currentWordIndex];
+  const span = textElement.children[currentWordIndex];
+
+  if (word.startsWith(typed)) span.classList.remove("incorrect");
+  else span.classList.add("incorrect");
+});
+</script>
 
 </body>
 </html>
