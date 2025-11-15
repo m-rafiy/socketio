@@ -9,18 +9,31 @@
     body {
       font-family: system-ui, sans-serif;
       display: flex;
-      flex-direction: column;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       min-height: 100vh;
       background: #f4f4f9;
+      padding: 2rem 1rem;
+    }
+    .race-wrapper {
+      display: flex;
+      gap: 2rem;
+      width: 95%;
+      max-width: 1200px;
+      align-items: flex-start;
+    }
+    .race-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     #text {
-      width: 80%;
+      width: 100%;
       max-width: 700px;
       line-height: 1.8;
       font-size: 1.2rem;
-      margin-bottom: 2rem;
+      margin: 1rem 0 2rem;
       text-align: center;
     }
     .word {
@@ -49,13 +62,65 @@
       font-weight: bold;
       margin-bottom: 1rem;
     }
-    #players {
+    #players, #track {
       margin-bottom: 1.5rem;
       background: white;
       padding: 1rem 1.5rem;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-      min-width: 260px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .race-status {
+      min-height: 24px;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      color: #0f172a;
+      display: none;
+    }
+    #track h3 {
+      margin: 0 0 0.8rem;
+      font-size: 1rem;
+    }
+    .track-row {
+      margin-bottom: 0.75rem;
+    }
+    .track-row:last-child {
+      margin-bottom: 0;
+    }
+    .track-empty {
+      margin: 0;
+      color: #777;
+      font-style: italic;
+    }
+    .driver-name {
+      font-weight: 600;
+      margin-right: 0.5rem;
+      display: inline-block;
+      min-width: 80px;
+    }
+    .track-bar {
+      position: relative;
+      background: #ececec;
+      height: 18px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .track-progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg,#38bdf8,#2563eb);
+      border-radius: 10px;
+    }
+    .track-car {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2rem;
+      transition: left 0.2s ease;
     }
     #players h3 {
       margin-top: 0;
@@ -72,6 +137,41 @@
       font-weight: 600;
       color: #333;
     }
+    #scoreboard {
+      width: 300px;
+      background: white;
+      padding: 1rem 1.2rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 2rem;
+    }
+    #scoreboard h3 {
+      margin: 0 0 0.8rem;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    #scoreboard ol {
+      padding-left: 1.2rem;
+      margin: 0;
+    }
+    #scoreboard li {
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+    #scoreboard li span:last-child {
+      font-weight: 400;
+      color: #666;
+    }
+    #scoreboard-empty {
+      color: #777;
+      font-style: italic;
+      margin: 0 0 0.6rem;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -79,15 +179,31 @@
 
 <script src="/socket.io/socket.io.js"></script>
 
-<h2 id="timer">⏳ Waiting for players...</h2>
-<div id="players">
-  <h3>Lobby:</h3>
-  <ul id="player-list">
-    <li>Waiting for players…</li>
-  </ul>
+<div class="race-wrapper">
+  <div class="race-main">
+    <h2 id="timer">⏳ Waiting for players...</h2>
+    <div id="players">
+      <h3>Lobby:</h3>
+      <ul id="player-list">
+        <li>Waiting for players…</li>
+      </ul>
+    </div>
+    <div id="track">
+      <h3>🏎️ Live Race</h3>
+      <div id="track-rows">
+        <p class="track-empty">Waiting for racers…</p>
+      </div>
+    </div>
+    <div id="race-status" class="race-status"></div>
+    <div id="text"></div>
+    <input id="input" type="text" placeholder="Start typing..." disabled />
+  </div>
+  <div id="scoreboard">
+    <h3>🏆 Scoreboard</h3>
+    <p id="scoreboard-empty">No finishers yet</p>
+    <ol id="scoreboard-list"></ol>
+  </div>
 </div>
-<div id="text"></div>
-<input id="input" type="text" placeholder="Start typing..." disabled />
 
 <script>
 const socket = io();
@@ -112,27 +228,23 @@ socket.on("start game", () => {
   startRace();
 });
 
-// Update player list in lobby
-const playerList = document.getElementById("player-list");
-socket.on("player list", (players) => {
-  if (!players.length) {
-    playerList.innerHTML = "<li>Waiting for players…</li>";
-    return;
-  }
-
-  playerList.innerHTML = players
-    .map((p, i) => `<li>${i + 1}. ${p}</li>`)
-    .join("");
-});
-
 // ---- Typing game logic ----
+const playerList = document.getElementById("player-list");
 const textElement = document.getElementById("text");
 const input = document.getElementById("input");
+const scoreboardEmpty = document.getElementById("scoreboard-empty");
+const scoreboardList = document.getElementById("scoreboard-list");
+const trackRows = document.getElementById("track-rows");
+const raceStatus = document.getElementById("race-status");
 let currentWordIndex = 0;
 let correctWords = 0;
-let timeLeft = 30;
+const totalTime = 30;
+let timeLeft = totalTime;
 let timer = null;
 let started = false;
+let reportedResult = false;
+const playerProgress = {};
+const trackMap = new Map();
 
 const passage = "The quick brown fox jumps over the lazy dog";
 const words = passage.split(" ");
@@ -149,26 +261,73 @@ function renderText() {
 }
 renderText();
 
+function resetTextState() {
+  currentWordIndex = 0;
+  correctWords = 0;
+  timeLeft = totalTime;
+  input.value = "";
+  renderText();
+}
+
 function startRace() {
   document.getElementById("timer").textContent = "⏱️ Race started!";
+  scoreboardList.innerHTML = "";
+  scoreboardEmpty.style.display = "block";
+  scoreboardEmpty.textContent = "No finishers yet";
+  raceStatus.style.display = "none";
+  raceStatus.textContent = "";
+  resetTextState();
   input.disabled = false;
   input.focus();
   started = true;
+  reportedResult = false;
+  sendProgressUpdate(0);
   startTimer();
 }
 
 function startTimer() {
+  if (timer) clearInterval(timer);
   timer = setInterval(() => {
     timeLeft--;
     document.getElementById("timer").textContent = `⏱️ Time: ${timeLeft}s`;
 
     if (timeLeft <= 0) {
-      clearInterval(timer);
-      input.disabled = true;
-      const wpm = Math.round((correctWords / 30) * 60);
-      alert(`⏰ Time's up!\nCorrect words: ${correctWords}\nSpeed: ${wpm} WPM`);
+      timeLeft = 0;
+      finalizeUI();
+      reportResult("timed out");
     }
   }, 1000);
+}
+
+function finalizeUI() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  started = false;
+  input.disabled = true;
+}
+
+function reportResult(status) {
+  if (reportedResult) return;
+  reportedResult = true;
+  const elapsed = totalTime - timeLeft;
+  const duration = elapsed > 0 ? elapsed : totalTime;
+  const wpm = duration > 0 ? Math.round((correctWords / duration) * 60) : 0;
+
+  if (status === "finished") sendProgressUpdate(1, true);
+
+  socket.emit("player finished", {
+    correctWords,
+    wpm,
+    status,
+  });
+}
+
+function sendProgressUpdate(value, force = false) {
+  if (!force && !started) return;
+  const progress = value != null ? value : (words.length ? currentWordIndex / words.length : 0);
+  socket.emit("progress update", { progress });
 }
 
 input.addEventListener("keydown", (e) => {
@@ -189,10 +348,10 @@ input.addEventListener("keydown", (e) => {
       if (currentWordIndex < words.length) {
         textElement.children[currentWordIndex].classList.add("current");
       } else {
-        clearInterval(timer);
-        const wpm = Math.round((correctWords / (30 - timeLeft)) * 60);
-        alert(`🏁 Finished early!\nCorrect: ${correctWords}\nWPM: ${wpm}`);
+        finalizeUI();
+        reportResult("finished");
       }
+      sendProgressUpdate();
       input.value = "";
     } else {
       span.classList.add("incorrect");
@@ -201,12 +360,110 @@ input.addEventListener("keydown", (e) => {
 });
 
 input.addEventListener("input", () => {
+  if (!started) return;
   const typed = input.value.trim();
   const word = words[currentWordIndex];
   const span = textElement.children[currentWordIndex];
 
-  if (word.startsWith(typed)) span.classList.remove("incorrect");
+  if (word && word.startsWith(typed)) span.classList.remove("incorrect");
   else span.classList.add("incorrect");
+});
+
+socket.on("race results", ({ scoreboard = [], final = false } = {}) => {
+  if (!scoreboard.length) {
+    scoreboardEmpty.style.display = "block";
+    scoreboardEmpty.textContent = "No finishers yet";
+    scoreboardList.innerHTML = "";
+    if (final) {
+      raceStatus.style.display = "block";
+      raceStatus.textContent = "Race finished!";
+    }
+    return;
+  }
+
+  scoreboardEmpty.style.display = "none";
+  scoreboardList.innerHTML = scoreboard
+    .map((player, idx) => {
+      const placement = `${idx + 1}. ${player.username}`;
+      const details = `${player.wpm} WPM • ${player.correctWords} words (${player.status})`;
+      return `<li><span>${placement}</span><span>${details}</span></li>`;
+    })
+    .join("");
+
+  if (final) {
+    raceStatus.style.display = "block";
+    raceStatus.textContent = "You finished! Final results on the right.";
+  }
+});
+
+function renderTrack(players) {
+  trackRows.innerHTML = "";
+  trackMap.clear();
+  if (!players.length) {
+    trackRows.innerHTML = '<p class="track-empty">Waiting for racers…</p>';
+    return;
+  }
+
+  players.forEach((player) => {
+    if (playerProgress[player] == null) playerProgress[player] = 0;
+
+    const row = document.createElement("div");
+    row.className = "track-row";
+    row.dataset.player = player;
+
+    const name = document.createElement("span");
+    name.className = "driver-name";
+    name.textContent = player;
+
+    const bar = document.createElement("div");
+    bar.className = "track-bar";
+
+    const progressEl = document.createElement("div");
+    progressEl.className = "track-progress";
+
+    const carEl = document.createElement("div");
+    carEl.className = "track-car";
+    carEl.textContent = "🚗";
+
+    bar.appendChild(progressEl);
+    bar.appendChild(carEl);
+    row.appendChild(name);
+    row.appendChild(bar);
+    trackRows.appendChild(row);
+
+    trackMap.set(player, { progressEl, carEl });
+    updateCarPosition(player, playerProgress[player]);
+  });
+}
+
+function updateCarPosition(player, progress) {
+  const entry = trackMap.get(player);
+  if (!entry) return;
+  const pct = Math.max(0, Math.min(1, progress)) * 100;
+  entry.progressEl.style.width = `${pct}%`;
+  entry.carEl.style.left = `${pct}%`;
+}
+
+socket.on("progress update", ({ username: racer, progress }) => {
+  playerProgress[racer] = progress;
+  updateCarPosition(racer, progress);
+});
+
+socket.on("progress reset", () => {
+  Object.keys(playerProgress).forEach((key) => (playerProgress[key] = 0));
+  trackMap.forEach((_, player) => updateCarPosition(player, 0));
+});
+
+socket.on("player list", (players) => {
+  if (!players.length) {
+    playerList.innerHTML = "<li>Waiting for players…</li>";
+  } else {
+    playerList.innerHTML = players
+      .map((p, i) => `<li>${i + 1}. ${p}</li>`)
+      .join("");
+  }
+
+  renderTrack(players);
 });
 </script>
 

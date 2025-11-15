@@ -11,11 +11,32 @@
       height: 100vh;
       flex-direction: column;
       background: #fafafa;
+      color: #222;
     }
     input, button {
       padding: 10px;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       margin: 8px;
+    }
+    .lobbies {
+      display: flex;
+      gap: 1rem;
+      margin: 10px 0 18px;
+    }
+    .lobby-option {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      background: white;
+      transition: border 0.2s, box-shadow 0.2s;
+    }
+    .lobby-option input {
+      margin-right: 6px;
+    }
+    .lobby-option.active {
+      border-color: #0070f3;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
   </style>
 </head>
@@ -24,14 +45,38 @@
 <h1>🏁 Typing Race Lobby</h1>
 
 <input id="username" placeholder="Your name">
-<input id="room" placeholder="Room name" value="race1">
+
+<div class="lobbies" id="lobbyChoices">
+  <label class="lobby-option active">
+    <input type="radio" name="room" value="lobby1" checked>
+    Lobby 1
+  </label>
+  <label class="lobby-option">
+    <input type="radio" name="room" value="lobby2">
+    Lobby 2
+  </label>
+  <label class="lobby-option">
+    <input type="radio" name="room" value="lobby3">
+    Lobby 3
+  </label>
+</div>
 
 <button onclick="joinRace()">Join Race</button>
 
 <script>
+const lobbyChoices = document.getElementById("lobbyChoices");
+lobbyChoices.addEventListener("change", () => {
+  const labels = lobbyChoices.querySelectorAll(".lobby-option");
+  labels.forEach(label => {
+    const input = label.querySelector("input");
+    label.classList.toggle("active", input.checked);
+  });
+});
+
 function joinRace() {
   const username = document.getElementById("username").value.trim();
-  const room = document.getElementById("room").value.trim();
+  const selected = document.querySelector('input[name="room"]:checked');
+  const room = selected ? selected.value : "";
 
   if (!username || !room) return alert("Enter username + room");
 
