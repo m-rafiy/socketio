@@ -52,6 +52,22 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 1rem;
+    }
+    .typing-message {
+      width: 100%;
+      max-width: 760px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #0f172a;
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .hidden {
+      display: none !important;
     }
     .word {
       padding: 2px 4px;
@@ -227,6 +243,7 @@
     </div>
     <div id="race-status" class="race-status"></div>
     <div class="typing-area">
+      <div id="typing-message" class="typing-message hidden"></div>
       <div id="text"></div>
       <input id="input" type="text" placeholder="Start typing..." disabled />
     </div>
@@ -282,6 +299,7 @@ const scoreboardEmpty = document.getElementById("scoreboard-empty");
 const scoreboardList = document.getElementById("scoreboard-list");
 const trackRows = document.getElementById("track-rows");
 const raceStatus = document.getElementById("race-status");
+const typingMessage = document.getElementById("typing-message");
 let currentWordIndex = 0;
 let correctWords = 0;
 const totalTime = 30;
@@ -312,6 +330,20 @@ function renderText() {
 }
 renderText();
 
+function showTypingMessage(message) {
+  typingMessage.textContent = message;
+  typingMessage.classList.remove("hidden");
+  textElement.classList.add("hidden");
+  input.classList.add("hidden");
+}
+
+function hideTypingMessage() {
+  typingMessage.textContent = "";
+  typingMessage.classList.add("hidden");
+  textElement.classList.remove("hidden");
+  input.classList.remove("hidden");
+}
+
 function setPassage(passageText) {
   activePassage = passageText || passages[0];
   words = activePassage.split(" ");
@@ -334,6 +366,7 @@ function startRace(passageText) {
   scoreboardEmpty.textContent = "No finishers yet";
   raceStatus.style.display = "none";
   raceStatus.textContent = "";
+  hideTypingMessage();
   resetTextState(passageText);
   input.disabled = false;
   input.focus();
@@ -352,6 +385,7 @@ function startTimer() {
     if (timeLeft <= 0) {
       timeLeft = 0;
       finalizeUI();
+      showTypingMessage("⏰ Time is up!");
       reportResult("timed out");
     }
   }, 1000);
@@ -374,6 +408,7 @@ function reportResult(status) {
   const wpm = duration > 0 ? Math.round((correctWords / duration) * 60) : 0;
 
   if (status === "finished") sendProgressUpdate(1, true);
+  else sendProgressUpdate();
 
   socket.emit("player finished", {
     correctWords,
@@ -427,14 +462,19 @@ input.addEventListener("input", () => {
   else span.classList.add("incorrect");
 });
 
-socket.on("race results", ({ scoreboard = [], final = false } = {}) => {
+socket.on("race results", ({ scoreboard = [], final = false, reason = "progress" } = {}) => {
   if (!scoreboard.length) {
     scoreboardEmpty.style.display = "block";
     scoreboardEmpty.textContent = "No finishers yet";
     scoreboardList.innerHTML = "";
-    if (final) {
+    if (reason === "timer") {
+      raceStatus.style.display = "block";
+      raceStatus.textContent = "Time is up!";
+      showTypingMessage("⏰ Time is up!");
+    } else if (final) {
       raceStatus.style.display = "block";
       raceStatus.textContent = "Race finished!";
+      showTypingMessage("🏁 Game complete!");
     }
     return;
   }
@@ -448,9 +488,14 @@ socket.on("race results", ({ scoreboard = [], final = false } = {}) => {
     })
     .join("");
 
-  if (final) {
+  if (reason === "timer") {
+    raceStatus.style.display = "block";
+    raceStatus.textContent = "Time is up!";
+    showTypingMessage("⏰ Time is up!");
+  } else if (final || reason === "disconnect") {
     raceStatus.style.display = "block";
     raceStatus.textContent = "You finished! Final results on the right.";
+    showTypingMessage("🏁 Game complete!");
   }
 });
 

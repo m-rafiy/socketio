@@ -91,7 +91,7 @@ function concludeRace(room, reason = "complete") {
   });
 
   const isAllFinished = reason === "complete";
-  broadcastScoreboard(room, isAllFinished);
+  broadcastScoreboard(room, isAllFinished, reason);
 
   // Reset state for next lobby round
   r.lobbyOpen = true;
@@ -113,7 +113,7 @@ function checkRaceCompletion(room, reason) {
   }
 }
 
-function broadcastScoreboard(room, final = false) {
+function broadcastScoreboard(room, final = false, reason = "progress") {
   const r = rooms[room];
   if (!r) return;
 
@@ -140,7 +140,7 @@ function broadcastScoreboard(room, final = false) {
     return a.username.localeCompare(b.username);
   });
 
-  io.to(room).emit("race results", { scoreboard, final });
+  io.to(room).emit("race results", { scoreboard, final, reason });
 }
 
 io.on("connection", (socket) => {
