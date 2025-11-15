@@ -9,8 +9,8 @@
     body {
       font-family: system-ui, sans-serif;
       display: flex;
-      justify-content: center;
-      align-items: center;
+      justify-content: space-between;
+      align-items: flex-start;
       min-height: 100vh;
       background: #f4f4f9;
       padding: 2rem 1rem;
@@ -18,23 +18,40 @@
     .race-wrapper {
       display: flex;
       gap: 2rem;
-      width: 95%;
+      width: 100%;
       max-width: 1200px;
       align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 0 auto;
     }
     .race-main {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
+      max-width: 760px;
+      width: 100%;
     }
     #text {
       width: 100%;
-      max-width: 700px;
+      max-width: 760px;
       line-height: 1.8;
-      font-size: 1.2rem;
-      margin: 1rem 0 2rem;
-      text-align: center;
+      font-size: 1.25rem;
+      margin: 1.2rem 0 2rem;
+      text-align: left;
+      background: white;
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      word-break: break-word;
+    }
+    .typing-area {
+      margin-top: auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     .word {
       padding: 2px 4px;
@@ -62,7 +79,7 @@
       font-weight: bold;
       margin-bottom: 1rem;
     }
-    #players, #track {
+    #track {
       margin-bottom: 1.5rem;
       background: white;
       padding: 1rem 1.5rem;
@@ -118,7 +135,7 @@
     .track-car {
       position: absolute;
       top: 50%;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) scaleX(-1);
       font-size: 1.2rem;
       transition: left 0.2s ease;
     }
@@ -137,14 +154,21 @@
       font-weight: 600;
       color: #333;
     }
-    #scoreboard {
-      width: 300px;
+    .race-side {
+      flex: 0 0 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      position: sticky;
+      top: 2rem;
+      margin-left: auto;
+    }
+    #scoreboard,
+    #players {
       background: white;
       padding: 1rem 1.2rem;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      position: sticky;
-      top: 2rem;
     }
     #scoreboard h3 {
       margin: 0 0 0.8rem;
@@ -172,6 +196,19 @@
       margin: 0 0 0.6rem;
       text-align: center;
     }
+    @media (max-width: 900px) {
+      .race-side {
+        position: static;
+        width: 100%;
+        flex: 1 1 auto;
+        max-width: 520px;
+        margin-left: 0;
+      }
+      #scoreboard,
+      #players {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
@@ -182,12 +219,6 @@
 <div class="race-wrapper">
   <div class="race-main">
     <h2 id="timer">⏳ Waiting for players...</h2>
-    <div id="players">
-      <h3>Lobby:</h3>
-      <ul id="player-list">
-        <li>Waiting for players…</li>
-      </ul>
-    </div>
     <div id="track">
       <h3>🏎️ Live Race</h3>
       <div id="track-rows">
@@ -195,13 +226,23 @@
       </div>
     </div>
     <div id="race-status" class="race-status"></div>
-    <div id="text"></div>
-    <input id="input" type="text" placeholder="Start typing..." disabled />
+    <div class="typing-area">
+      <div id="text"></div>
+      <input id="input" type="text" placeholder="Start typing..." disabled />
+    </div>
   </div>
-  <div id="scoreboard">
-    <h3>🏆 Scoreboard</h3>
-    <p id="scoreboard-empty">No finishers yet</p>
-    <ol id="scoreboard-list"></ol>
+  <div class="race-side">
+    <div id="scoreboard">
+      <h3>🏆 Scoreboard</h3>
+      <p id="scoreboard-empty">No finishers yet</p>
+      <ol id="scoreboard-list"></ol>
+    </div>
+    <div id="players">
+      <h3>Lobby:</h3>
+      <ul id="player-list">
+        <li>Waiting for players…</li>
+      </ul>
+    </div>
   </div>
 </div>
 
@@ -212,6 +253,11 @@ const username = params.get("username");
 const room = params.get("room");
 
 socket.emit("join room", { username, room });
+
+socket.on("name-taken", () => {
+  alert("That username is already racing in this lobby. Pick a different name.");
+  window.location = "/";
+});
 
 // Countdown events from server
 socket.on("lobby countdown", (num) => {
@@ -224,8 +270,8 @@ socket.on("lobby-locked", () => {
 });
 
 // The race begins
-socket.on("start game", () => {
-  startRace();
+socket.on("start game", ({ passage } = {}) => {
+  startRace(passage);
 });
 
 // ---- Typing game logic ----
@@ -246,8 +292,13 @@ let reportedResult = false;
 const playerProgress = {};
 const trackMap = new Map();
 
-const passage = "The quick brown fox jumps over the lazy dog";
-const words = passage.split(" ");
+const passages = [
+  "in a small town surrounded by rolling hills the night shift radio host keeps a sleepy audience awake with stories about lost astronauts curious inventors and brave gardeners who race to save their crops before a storm rolls in",
+  "the research vessel drifted across the glowing bay while marine biologists entered data swapped jokes about their favorite coffee and tried to predict which coral reef would reveal the next surprising symbiotic partnership",
+  "at sunrise the cycling team rolled onto the highway matching cadence with the metronome ticking in their headsets as the coach shouted split times wind gust warnings and reminders to breathe through every brutal climb"
+];
+let activePassage = passages[0];
+let words = activePassage.split(" ");
 
 function renderText() {
   textElement.innerHTML = words
@@ -261,22 +312,29 @@ function renderText() {
 }
 renderText();
 
-function resetTextState() {
+function setPassage(passageText) {
+  activePassage = passageText || passages[0];
+  words = activePassage.split(" ");
+  renderText();
+}
+
+function resetTextState(passageText) {
   currentWordIndex = 0;
   correctWords = 0;
   timeLeft = totalTime;
   input.value = "";
-  renderText();
+  if (passageText) setPassage(passageText);
+  else setPassage(activePassage);
 }
 
-function startRace() {
+function startRace(passageText) {
   document.getElementById("timer").textContent = "⏱️ Race started!";
   scoreboardList.innerHTML = "";
   scoreboardEmpty.style.display = "block";
   scoreboardEmpty.textContent = "No finishers yet";
   raceStatus.style.display = "none";
   raceStatus.textContent = "";
-  resetTextState();
+  resetTextState(passageText);
   input.disabled = false;
   input.focus();
   started = true;

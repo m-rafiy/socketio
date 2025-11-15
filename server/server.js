@@ -19,6 +19,11 @@ app.get('/race', (req, res) => {
 
 // --------- ROOM STATE ---------
 const GAME_DURATION_MS = 30000;
+const passages = [
+  "in a small town surrounded by rolling hills the night shift radio host keeps a sleepy audience awake with stories about lost astronauts curious inventors and brave gardeners who race to save their crops before a storm rolls in",
+  "the research vessel drifted across the glowing bay while marine biologists entered data swapped jokes about their favorite coffee and tried to predict which coral reef would reveal the next surprising symbiotic partnership",
+  "at sunrise the cycling team rolled onto the highway matching cadence with the metronome ticking in their headsets as the coach shouted split times wind gust warnings and reminders to breathe through every brutal climb"
+];
 const rooms = {};
 // rooms[room] = {
 //   players: [],
@@ -29,6 +34,8 @@ const rooms = {};
 //   finishTimeout: null,
 //   results: {},
 //   progress: {},
+//   currentPassage: null,
+//   wordCount: 0,
 // }
 
 function ensureRoom(room) {
@@ -42,6 +49,8 @@ function ensureRoom(room) {
       finishTimeout: null,
       results: {},
       progress: {},
+      currentPassage: null,
+      wordCount: 0,
     };
   }
   return rooms[room];
@@ -61,10 +70,21 @@ function concludeRace(room, reason = "complete") {
   r.racers.forEach((username) => {
     if (!r.results[username]) {
       const fallbackStatus = reason === "timer" ? "timed out" : "disconnected";
+      let correctWords = 0;
+      let wpm = 0;
+
+      if (reason === "timer") {
+        const progress = r.progress[username] ?? 0;
+        const totalWords = r.wordCount || (r.currentPassage ? r.currentPassage.split(/\s+/).length : 0);
+        correctWords = Math.round(progress * totalWords);
+        const seconds = GAME_DURATION_MS / 1000;
+        wpm = seconds > 0 ? Math.round((correctWords / seconds) * 60) : 0;
+      }
+
       r.results[username] = {
         username,
-        correctWords: 0,
-        wpm: 0,
+        correctWords,
+        wpm,
         status: fallbackStatus,
       };
     }
@@ -79,6 +99,8 @@ function concludeRace(room, reason = "complete") {
   r.racers = [];
   r.results = {};
   r.progress = {};
+  r.currentPassage = null;
+  r.wordCount = 0;
 }
 
 function checkRaceCompletion(room, reason) {
@@ -125,11 +147,16 @@ io.on("connection", (socket) => {
   console.log("a user connected");
 
   socket.on("join room", ({ username, room }) => {
+    const r = ensureRoom(room);
+
+    if (r.players.includes(username)) {
+      socket.emit("name-taken");
+      return;
+    }
+
     socket.join(room);
     socket.data.username = username;
     socket.data.room = room;
-
-    const r = ensureRoom(room);
 
     // Reject late joiners
     if (!r.lobbyOpen) {
@@ -159,8 +186,11 @@ io.on("connection", (socket) => {
           r.racers = [...r.players];
           r.results = {};
           r.progress = {};
+          const passage = passages[Math.floor(Math.random() * passages.length)];
+          r.currentPassage = passage;
+          r.wordCount = passage.trim().split(/\s+/).length;
 
-          io.to(room).emit("start game");
+          io.to(room).emit("start game", { passage });
           io.to(room).emit("progress reset");
 
           r.finishTimeout = setTimeout(() => {
