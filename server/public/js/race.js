@@ -34,6 +34,7 @@ const scoreboardList = document.getElementById("scoreboard-list");
 const trackRows = document.getElementById("track-rows");
 const raceStatus = document.getElementById("race-status");
 const typingMessage = document.getElementById("typing-message");
+const homeButton = document.getElementById("home-button");
 let currentWordIndex = 0;
 let correctWords = 0;
 const totalTime = 30;
@@ -43,6 +44,10 @@ let started = false;
 let reportedResult = false;
 const playerProgress = {};
 const trackMap = new Map();
+
+homeButton.addEventListener("click", () => {
+  window.location = "/";
+});
 
 const passages = [
   "in a small town surrounded by rolling hills the night shift radio host keeps a sleepy audience awake with stories about lost astronauts curious inventors and brave gardeners who race to save their crops before a storm rolls in",
@@ -69,6 +74,7 @@ function showTypingMessage(message) {
   typingMessage.classList.remove("hidden");
   textElement.classList.add("hidden");
   input.classList.add("hidden");
+  homeButton.classList.remove("hidden");
 }
 
 function hideTypingMessage() {
@@ -76,6 +82,7 @@ function hideTypingMessage() {
   typingMessage.classList.add("hidden");
   textElement.classList.remove("hidden");
   input.classList.remove("hidden");
+  homeButton.classList.add("hidden");
 }
 
 function setPassage(passageText) {

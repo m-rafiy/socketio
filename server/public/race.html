@@ -66,6 +66,20 @@
       padding: 1rem 1.5rem;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
+    .home-button {
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .home-button:hover {
+      background: #1d4ed8;
+    }
     .hidden {
       display: none !important;
     }
@@ -246,6 +260,7 @@
       <div id="typing-message" class="typing-message hidden"></div>
       <div id="text"></div>
       <input id="input" type="text" placeholder="Start typing..." disabled />
+      <button id="home-button" class="home-button hidden">Back to lobby</button>
     </div>
   </div>
   <div class="race-side">
